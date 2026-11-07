@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>Wheel Predict League — Wallet Edition</title>
+    <style>
+      :root{
+        --bg:#f6f4ef; --surface:#fffdf8; --surface2:#efe9dc; --ink:#1d1a14; --muted:#6b6353;
+        --line:#ddd3bf; --accent:#b3541e; --accent-ink:#fff; --good:#2e7d46; --bad:#b3372e;
+        --chip:#f3e8d3; --shadow:0 1px 3px rgba(60,45,20,.12); --gold:#a97b12;
+      }
+      @media (prefers-color-scheme: dark){
+        :root{
+          --bg:#171410; --surface:#211d17; --surface2:#2a251d; --ink:#f0e9da; --muted:#a89c85;
+          --line:#3d362a; --accent:#e07f3e; --accent-ink:#1d1408; --good:#6fce8d; --bad:#ff8a7a;
+          --chip:#33291b; --shadow:0 1px 3px rgba(0,0,0,.5); --gold:#e3b341;
+        }
+      }
+      *{box-sizing:border-box}
+      body{margin:0;background:var(--bg);color:var(--ink);
+        font-family:ui-rounded,"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
+        line-height:1.55;-webkit-text-size-adjust:100%}
+      .wrap{max-width:920px;margin:0 auto;padding:20px 16px 56px}
+      h1{font-size:clamp(27px,5vw,40px);line-height:1.15;margin:6px 0 8px;letter-spacing:-.01em}
+      h2{font-size:20px;margin:0 0 10px}
+      h3{font-size:16px;margin:0 0 6px}
+      p{margin:0 0 10px}
+      .lede{color:var(--muted);font-size:16px;max-width:64ch}
+      .badge{display:inline-block;background:var(--chip);color:var(--ink);border:1px solid var(--line);
+        border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600}
+      .badge.good{color:var(--good)} .badge.warn{color:var(--gold)}
+      .grid{display:grid;gap:14px;margin-top:16px}
+      @media(min-width:720px){.grid.two{grid-template-columns:1fr 1fr}}
+      .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+        padding:18px;box-shadow:var(--shadow)}
+      .stat-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+      .stat{flex:1 1 120px;background:var(--surface2);border-radius:10px;padding:10px 12px}
+      .stat b{display:block;font-size:22px;line-height:1.2}
+      .stat span{font-size:12.5px;color:var(--muted)}
+      .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);vertical-align:middle;margin-right:6px}
+      .dot.idle{background:#c98a1b}.dot.run{background:var(--good)}
+      label{display:block;font-size:13.5px;font-weight:600;margin:12px 0 5px}
+      input[type=text],input[type=number]{width:100%;padding:11px 12px;border-radius:10px;
+        border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:16px}
+      .seg{display:flex;gap:8px}
+      .seg button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);
+        background:var(--surface2);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer}
+      .seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+      .btn{display:inline-block;width:100%;margin-top:16px;padding:13px;border:none;border-radius:11px;
+        background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:700;cursor:pointer}
+      .btn:active{transform:translateY(1px)}
+      .btn:disabled{opacity:.55;cursor:not-allowed}
+      .btn.ghost{width:auto;background:var(--surface2);color:var(--ink);border:1px solid var(--line);
+        padding:8px 14px;font-size:14px;margin-top:0}
+      .btn.small{width:auto;padding:6px 12px;font-size:13px;margin-top:0;border-radius:8px}
+      .btn.small.ghosty{background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
+      .msg{margin-top:12px;font-size:14.5px;min-height:1.4em}
+      .msg.ok{color:var(--good)} .msg.err{color:var(--bad)}
+      table{width:100%;border-collapse:collapse;font-size:14px}
+      th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+      th{font-size:12.5px;color:var(--muted);font-weight:700}
+      td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+      .stack{display:grid;gap:14px;margin-top:14px}
+      .pred{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}
+      .pred .top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+      .pred .who{font-weight:700}
+      .lock{font-size:12px;color:var(--muted)}
+      a{color:var(--accent);word-break:break-all}
+      .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;word-break:break-all}
+      .small{font-size:13px;color:var(--muted)}
+      ul.tight{margin:6px 0 0;padding-left:20px}
+      ul.tight li{margin:4px 0}
+      .botcall{font-size:26px;font-weight:800}
+      .scrollx{overflow-x:auto}
+      .walletbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
+      .addr{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700}
+      .rowbtns{display:flex;gap:8px;flex-wrap:wrap}
+      .sigbox{background:var(--surface2);border-radius:10px;padding:10px 12px;margin-top:8px}
+      .feeditem{display:flex;justify-content:space-between;gap:10px;align-items:center;
+        border-bottom:1px solid var(--line);padding:10px 0;flex-wrap:wrap}
+      .feeditem:last-child{border-bottom:none}
+      footer{margin-top:26px;color:var(--muted);font-size:13px}
+      .rank{font-weight:800;color:var(--accent)}
+      tr.you td{background:var(--surface2);font-weight:600}
+      @media(max-width:560px){
+        .opt{display:none}
+        table{font-size:13px}
+        th,td{padding:7px 4px}
+        .btn.small{padding:5px 8px;font-size:12px}
+        td .btn.small{margin:1px 0}
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <span class="badge">Wallet Edition — wallet-signed predictions</span>
+      <h1>Wheel Predict League</h1>
+      <p class="lede">Call Squeektoshi's next round on Squeekchain: will the hamster <strong>run or nap</strong>,
+        how much <strong>work</strong> will it add, and how many <strong>blocks</strong> will it complete?
+        Connect your wallet, lock your call with a signature before the round settles, and get scored from the
+        real on-chain settlement (Sepolia) — every result carries a tx hash nobody can rewrite.</p>
+
+      <!-- ======= WALLET ======= -->
+      <section class="card" style="margin-top:18px" aria-label="Wallet">
+        <div class="walletbar">
+          <div>
+            <h2 style="margin-bottom:2px">Your wallet</h2>
+            <p class="small" id="walletState" style="margin:0">Not connected. Predictions are locked with a
+              free message signature — no gas, no transaction, nothing leaves your wallet but a signature.</p>
+            <p style="margin:6px 0 0"><span class="addr" id="walletAddr"></span>
+              <span class="badge" id="netBadge" style="display:none"></span></p>
+          </div>
+          <div class="rowbtns">
+            <button class="btn small" id="connectBtn" type="button">Connect wallet</button>
+            <button class="btn small ghosty" id="switchBtn" type="button" style="display:none">Switch to Sepolia</button>
+            <button class="btn small ghosty" id="disconnectBtn" type="button" style="display:none">Disconnect</button>
+          </div>
+        </div>
+        <p class="msg" id="walletMsg" role="status"></p>
+        <p class="small" id="noWalletNote" style="display:none">No wallet detected in this browser. Open this page
+          inside a wallet browser (e.g. MetaMask's built-in browser) or install a wallet extension, then reload.
+          You can still browse the league, SqueekBot and the settlement history below without one.</p>
+      </section>
+
+      <!-- ======= LIVE STATUS ======= -->
+      <section class="card" style="margin-top:14px" aria-label="Squeektoshi status">
+        <h2><span class="dot idle" id="statusDot"></span>Wheel status</h2>
+        <div class="stat-row">
+          <div class="stat"><b id="stStatus">IDLE — napping</b><span>Hamster status</span></div>
+          <div class="stat"><b id="stSettled">526</b><span>Settled through round</span></div>
+          <div class="stat"><b id="stNext">527</b><span>Next round to predict</span></div>
+          <div class="stat"><b id="stWork">18,553</b><span>Total work</span></div>
+          <div class="stat"><b id="stDist">6.59 km</b><span>Total distance</span></div>
+          <div class="stat"><b id="stBlocks">1,999</b><span>Block height</span></div>
+        </div>
+        <p class="small" style="margin-top:12px">Snapshot from the Squeekchain API at
+          <strong>18:43, Saturday 7 Nov 2026</strong> (Bangkok time). Rounds last 600 seconds (10 minutes).
+          Squeektoshi has been on a long nap streak since round 504 — total work has barely moved.</p>
+        <button class="btn ghost" id="refreshBtn" type="button">Refresh live data</button>
+        <span class="small" id="refreshNote" style="margin-left:8px"></span>
+      </section>
+
+      <div class="grid two">
+        <!-- ======= PREDICTION FORM ======= -->
+        <section class="card" aria-label="Lock a prediction">
+          <h2>Lock a prediction — round <span id="formRound">527</span></h2>
+          <form id="predForm" novalidate>
+            <label for="pName">Display name</label>
+            <input type="text" id="pName" maxlength="24" placeholder="e.g. lok" autocomplete="off" />
+            <label>Your call for the next round</label>
+            <div class="seg" role="group" aria-label="Run or nap">
+              <button type="button" id="segRun">Run</button>
+              <button type="button" id="segNap" class="on">Nap</button>
+            </div>
+            <label for="pWork">Predicted work (0–700)</label>
+            <input type="number" id="pWork" min="0" max="700" step="1" value="0" />
+            <label for="pBlocks">Predicted blocks (0–80)</label>
+            <input type="number" id="pBlocks" min="0" max="80" step="1" value="0" />
+            <button class="btn" type="submit" id="lockBtn">Sign &amp; lock prediction</button>
+            <p class="msg" id="formMsg" role="status"></p>
+          </form>
+          <p class="small">Locking asks your wallet to sign a message containing your wallet address, the round,
+            your call, work and blocks, and the lock time. The signature proves the prediction was yours and was
+            made before settlement — it can't be edited afterwards.</p>
+        </section>
+
+        <!-- ======= SQUEEKBOT ======= -->
+        <section class="card" aria-label="SqueekBot">
+          <h2>SqueekBot — the AI baseline</h2>
+          <p class="small">A simple machine baseline: the median of the last 10 settled rounds. The long nap
+            streak (rounds 504–526) has it fully committed to a nap.</p>
+          <p class="botcall">NAP — work 0 · blocks 0</p>
+          <p>SqueekBot's call for round <span class="botRound">527</span> is already locked below.
+            Beating the Bot in your first round is every new player's first target.</p>
+          <h3 style="margin-top:14px">Scoring (max 100 pts / round)</h3>
+          <ul class="tight">
+            <li><strong>40 pts</strong> — correct run / nap call</li>
+            <li><strong>30 pts</strong> — work closeness: the nearer your number, the more you score</li>
+            <li><strong>30 pts</strong> — block closeness, scored the same way</li>
+          </ul>
+          <p class="small" style="margin-top:8px">Closeness formula: points = 30 × max(0, 1 − |guess − actual| / max(actual, guess, 1)).
+            A correct nap call with work 0 and blocks 0 scores the full 100.</p>
+        </section>
+      </div>
+
+      <!-- ======= LOCKED PREDICTIONS ======= -->
+      <section style="margin-top:20px" aria-label="Locked predictions">
+        <h2>Locked predictions for round <span class="predRound">527</span></h2>
+        <div class="stack" id="predList">
+          <div class="pred">
+            <div class="top"><span class="who">SqueekBot</span><span class="lock">Locked · AI baseline</span></div>
+            <p style="margin:4px 0 0">NAP · work <strong>0</strong> · blocks <strong>0</strong></p>
+          </div>
+        </div>
+        <p class="small" id="predEmpty">No player has locked a prediction on this device yet — be the first using the form above.</p>
+      </section>
+
+      <!-- ======= LEADERBOARD ======= -->
+      <section class="card" style="margin-top:20px" aria-label="Season leaderboard">
+        <h2>Season leaderboard</h2>
+        <p class="small">Your row is live: it fills in with your own signed predictions from this device and scores
+          as rounds settle. The other rows are <strong>demo rivals</strong> — sample records included so you can try
+          Follow and Copy; they are not real players.</p>
+        <div class="scrollx">
+        <table>
+          <thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num opt">Rounds</th>
+            <th class="num opt">Streak</th><th class="num opt">Accuracy</th><th>Next-round call</th><th></th></tr></thead>
+          <tbody id="boardBody"></tbody>
+        </table>
+        </div>
+      </section>
+
+      <!-- ======= FOLLOWING FEED ======= -->
+      <section class="card" style="margin-top:14px" aria-label="Following feed">
+        <h2>Following feed</h2>
+        <p class="small">Calls from the players you follow, for the next round. Copy any call straight into your
+          prediction form, adjust it if you like, then sign it with your own wallet.</p>
+        <div id="feedList"><p class="small" id="feedEmpty">You're not following anyone yet — tap Follow next to a player on the leaderboard.</p></div>
+      </section>
+
+      <!-- ======= RECENT SETTLEMENTS ======= -->
+      <section class="card" style="margin-top:14px" aria-label="Recent settlements">
+        <h2>Recent running rounds (settled on-chain)</h2>
+        <p class="small">Real data from the Squeekchain API at build time. Tap a tx hash to verify the result on Sepolia Etherscan.</p>
+        <div class="scrollx">
+        <table>
+          <thead><tr><th>Round</th><th>Result</th><th class="num">Work</th><th class="num">Blocks</th><th>Tx hash</th></tr></thead>
+          <tbody>
+            <tr><td>503</td><td>Run</td><td class="num">67</td><td class="num">8</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x1d2965707d9524fd67cb4befca0bc41fb0166ae40ebd108afdb1f40c19791733" target="_blank" rel="noopener">0x1d2965…1733</a></td></tr>
+            <tr><td>502</td><td>Run</td><td class="num">435</td><td class="num">52</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0xa5f560fe0bda68c3caaffca161d1bd3b7027596592d93d71601c3bebff69ca82" target="_blank" rel="noopener">0xa5f560…ca82</a></td></tr>
+            <tr><td>501</td><td>Run</td><td class="num">528</td><td class="num">64</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x84e5476bb0f16123ecce6027dd27df4e8662e0f8bfaba4cac89c6b4746e8b157" target="_blank" rel="noopener">0x84e547…b157</a></td></tr>
+            <tr><td>500</td><td>Run</td><td class="num">122</td><td class="num">15</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x37589918246da3881ed8003f6ad217dc58cf363bd723100df69da562b9885c9f" target="_blank" rel="noopener">0x375899…5c9f</a></td></tr>
+            <tr><td>498</td><td>Run</td><td class="num">142</td><td class="num">16</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x91a59f391baacadbda2a87d6094bca64b312d9d35657e8acc79cc649fdc458ca" target="_blank" rel="noopener">0x91a59f…58ca</a></td></tr>
+            <tr><td>497</td><td>Run</td><td class="num">471</td><td class="num">56</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x05acb791a8535da6439ade6b0db6beed51641ed043f8604caeab940f86c4f626" target="_blank" rel="noopener">0x05acb7…f626</a></td></tr>
+            <tr><td>496</td><td>Run</td><td class="num">160</td><td class="num">19</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x33f00dd22bbb9b4dfdb601547ce65fbf611d8e112b1535a2438eccf6afd3d74f" target="_blank" rel="noopener">0x33f00d…d74f</a></td></tr>
+            <tr><td>495</td><td>Run</td><td class="num">392</td><td class="num">46</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x50a818b7f793d56b284a36682dddbaf5a3d694998d6515ab96eac106330b4cd9" target="_blank" rel="noopener">0x50a818…4cd9</a></td></tr>
+            <tr><td>494</td><td>Run</td><td class="num">64</td><td class="num">7</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x12f5c7d4c8c80b4b4165d335b09f7e72473c0e9428a83379796531ce88ea28bd" target="_blank" rel="noopener">0x12f5c7…28bd</a></td></tr>
+            <tr><td>493</td><td>Run</td><td class="num">604</td><td class="num">70</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x3b85ba40aae7596729431ebb26fea004d515310a11a2b214fba1e35ade3c5563" target="_blank" rel="noopener">0x3b85ba…5563</a></td></tr>
+          </tbody>
+        </table>
+        </div>
+        <p class="small" style="margin-top:10px">After round 503 the hamster settled into a long nap: rounds 504–526
+          all settled with work 0 and blocks 0. Median of the last 10 running rounds: work ≈ 276, blocks ≈ 33 —
+          if it wakes up, that's the reference range to call from.</p>
+      </section>
+
+      <!-- ======= HOW IT PLAYS ======= -->
+      <section class="card" style="margin-top:14px" aria-label="How to play">
+        <h2>How to play in 30 seconds</h2>
+        <ul class="tight">
+          <li>Connect your wallet (Sepolia). Signing is free — predictions never send a transaction.</li>
+          <li>Each round lasts 10 minutes. Check the wheel status and history, then sign &amp; lock your call for the next round to settle.</li>
+          <li>A locked prediction can't be edited. When the round settles on-chain, your score is computed from the real work / blocks in the settlement.</li>
+          <li>Climb the leaderboard, follow the sharpest predictors, copy their calls — and beat SqueekBot.</li>
+        </ul>
+      </section>
+
+      <footer>
+        Wheel Predict League — Wallet Edition. Predictions are signed with your wallet and kept on this device
+        for this browser session; the shared cross-player league database and public deployment are the next stage
+        of the full version. Data: public Squeekchain API (api.squeekchain.com), Sepolia testnet — SQK has no real-world value.
+      </footer>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+    <script>
+      (function(){
+        'use strict';
+        var SEPOLIA = '0xaa36a7'; // 11155111
+        var nextRound = 527;
+
+        /* ---------- fallback ethers loader (for signature verification only) ---------- */
+        if(!window.ethers){
+          var s = document.createElement('script');
+          s.src = 'https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.1/ethers.umd.min.js';
+          document.head.appendChild(s);
+        }
+
+        /* ---------- state (in-memory, this session) ---------- */
+        var account = null;
+        var preds = [];               // my signed predictions
+        var follows = {};             // demo player id -> true
+        var myStats = { points:0, rounds:0, streak:0, correct:0 };
+        var demos = [
+          { id:'sage',  name:'SqueekSage',     points:4820, rounds:52, streak:9,  acc:71, call:'nap', work:0,   blocks:0  },
+          { id:'rpm',   name:'RPM Oracle',     points:4655, rounds:52, streak:4,  acc:68, call:'run', work:276, blocks:33 },
+          { id:'ww',    name:'WheelWhisperer', points:4410, rounds:50, streak:12, acc:74, call:'nap', work:0,   blocks:0  },
+          { id:'napk',  name:'NapKing',        points:4205, rounds:51, streak:6,  acc:66, call:'nap', work:0,   blocks:0  },
+          { id:'betty', name:'BlockBetty',     points:3980, rounds:49, streak:2,  acc:61, call:'run', work:122, blocks:15 }
+        ];
+
+        /* ---------- helpers ---------- */
+        function $(id){ return document.getElementById(id); }
+        function shortAddr(a){ return a ? a.slice(0,6) + '…' + a.slice(-4) : ''; }
+        function esc(t){ var d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+        function provider(){ return window.ethereum || null; }
+        function fetchT(url, ms){
+          var ctrl = ('AbortController' in window) ? new AbortController() : null;
+          var timer = ctrl ? setTimeout(function(){ ctrl.abort(); }, ms || 3000) : null;
+          return fetch(url, ctrl ? { signal: ctrl.signal } : {})
+            .then(function(r){ if(timer) clearTimeout(timer); return r.json(); })
+            .catch(function(e){ if(timer) clearTimeout(timer); throw e; });
+        }
+        function score(pred, actualWork, actualBlocks){
+          var actualCall = actualWork > 0 ? 'run' : 'nap';
+          var pts = 0;
+          if(pred.call === actualCall) pts += 40;
+          function close(guess, actual){
+            return 30 * Math.max(0, 1 - Math.abs(guess - actual) / Math.max(actual, guess, 1));
+          }
+          pts += close(pred.work, actualWork) + close(pred.blocks, actualBlocks);
+          return { points: Math.round(pts), correct: pred.call === actualCall };
+        }
+
+        /* ---------- wallet ---------- */
+        var connectBtn = $('connectBtn'), switchBtn = $('switchBtn'), disconnectBtn = $('disconnectBtn');
+        var walletMsg = $('walletMsg');
+
+        function renderWallet(){
+          if(account){
+            $('walletAddr').textContent = shortAddr(account);
+            $('walletState').textContent = 'Connected. Your display name defaults to your address — set your own in the prediction form.';
+            if(!$('pName').value) $('pName').value = shortAddr(account);
+            connectBtn.style.display = 'none';
+            disconnectBtn.style.display = '';
+            var nb = $('netBadge'); nb.style.display = '';
+            provider().request({ method:'eth_chainId' }).then(function(cid){
+              if(cid === SEPOLIA){ nb.textContent = 'Sepolia'; nb.className = 'badge good'; switchBtn.style.display = 'none'; }
+              else { nb.textContent = 'Wrong network'; nb.className = 'badge warn'; switchBtn.style.display = ''; }
+            }).catch(function(){});
+          } else {
+            $('walletAddr').textContent = '';
+            $('netBadge').style.display = 'none';
+            connectBtn.style.display = '';
+            disconnectBtn.style.display = 'none';
+            switchBtn.style.display = 'none';
+          }
+        }
+
+        if(!provider()){ $('noWalletNote').style.display = ''; connectBtn.disabled = true; connectBtn.textContent = 'No wallet detected'; }
+
+        connectBtn.addEventListener('click', function(){
+          walletMsg.className = 'msg'; walletMsg.textContent = '';
+          provider().request({ method:'eth_requestAccounts' })
+            .then(function(accs){
+              if(accs && accs.length){ account = accs[0]; renderWallet(); renderBoard(); }
+            })
+            .catch(function(){
+              walletMsg.textContent = 'Connection rejected or failed in the wallet. Nothing was signed.';
+              walletMsg.classList.add('err');
+            });
+        });
+        disconnectBtn.addEventListener('click', function(){
+          account = null; renderWallet(); renderBoard();
+          walletMsg.className = 'msg'; walletMsg.textContent = 'Disconnected locally. Your locked predictions stay listed below for this session.';
+        });
+        switchBtn.addEventListener('click', function(){
+          provider().request({ method:'wallet_switchEthereumChain', params:[{ chainId: SEPOLIA }] })
+            .then(function(){ renderWallet(); })
+            .catch(function(){ walletMsg.textContent = 'Network switch was rejected in the wallet.'; walletMsg.classList.add('err'); });
+        });
+        if(provider()){
+          if(provider().on){
+            provider().on('accountsChanged', function(accs){ account = accs && accs.length ? accs[0] : null; renderWallet(); renderBoard(); });
+            provider().on('chainChanged', function(){ renderWallet(); });
+          }
+          // Silent reconnect if the wallet already authorised this page.
+          provider().request({ method:'eth_accounts' }).then(function(accs){
+            if(accs && accs.length){ account = accs[0]; renderWallet(); renderBoard(); }
+          }).catch(function(){});
+        }
+
+        /* ---------- prediction form ---------- */
+        var call = 'nap';
+        var segRun = $('segRun'), segNap = $('segNap'), workEl = $('pWork'), blocksEl = $('pBlocks');
+        function setCall(v){
+          call = v;
+          segRun.classList.toggle('on', v === 'run');
+          segNap.classList.toggle('on', v === 'nap');
+          if(v === 'nap'){ workEl.value = 0; blocksEl.value = 0; }
+          else if(+workEl.value === 0){ workEl.value = 276; blocksEl.value = 33; }
+        }
+        segRun.addEventListener('click', function(){ setCall('run'); });
+        segNap.addEventListener('click', function(){ setCall('nap'); });
+
+        function renderPreds(){
+          var list = $('predList');
+          var mine = list.querySelectorAll('.pred.mine');
+          for(var i = 0; i < mine.length; i++) mine[i].remove();
+          preds.forEach(function(p){
+            var div = document.createElement('div');
+            div.className = 'pred mine';
+            var when = new Date(p.lockedAt);
+            var hh = ('0' + when.getHours()).slice(-2), mm = ('0' + when.getMinutes()).slice(-2);
+            var statusLine = p.scored
+              ? '<span class="badge good">Scored: ' + p.score + ' pts</span>'
+              : '<span class="lock">Awaiting settlement</span>';
+            div.innerHTML =
+              '<div class="top"><span class="who">' + esc(p.name) + '</span>' +
+              '<span class="lock">Signed &amp; locked ' + hh + ':' + mm + ' · ' + shortAddr(p.address) + '</span></div>' +
+              '<p style="margin:4px 0 0">' + (p.call === 'run' ? 'RUN' : 'NAP') + ' · work <strong>' + p.work + '</strong> · blocks <strong>' + p.blocks + '</strong> · round <strong>' + p.round + '</strong></p>' +
+              '<p style="margin:6px 0 0">' + statusLine + '</p>' +
+              '<div class="sigbox"><span class="small">Signature</span><br><span class="mono">' + esc(p.signature.slice(0, 42)) + '…</span><br>' +
+              '<span class="small">' + (p.verified
+                ? 'Verified: this signature recovers to the signing wallet.'
+                : 'Stored with the prediction. Open this page in a full browser to verify it against the wallet.') + '</span></div>';
+            list.appendChild(div);
+          });
+          $('predEmpty').style.display = preds.length ? 'none' : '';
+        }
+
+        $('predForm').addEventListener('submit', function(e){
+          e.preventDefault();
+          var msg = $('formMsg'); msg.className = 'msg'; msg.textContent = '';
+          function fail(t){ msg.textContent = t; msg.classList.add('err'); }
+          if(!provider()) return fail('No wallet found in this browser — open the page inside a wallet browser to sign predictions.');
+          if(!account) return fail('Connect your wallet first, then lock your prediction.');
+          var name = $('pName').value.trim();
+          var work = parseInt(workEl.value, 10), blocks = parseInt(blocksEl.value, 10);
+          if(!name) return fail('Enter a display name first.');
+          if(isNaN(work) || work < 0 || work > 700) return fail('Work must be between 0 and 700.');
+          if(isNaN(blocks) || blocks < 0 || blocks > 80) return fail('Blocks must be between 0 and 80.');
+          if(call === 'nap' && (work !== 0 || blocks !== 0)) return fail('A NAP call means work and blocks are both 0.');
+          if(call === 'run' && work === 0) return fail('A RUN call needs work above 0.');
+          if(preds.some(function(p){ return p.round === nextRound; })) return fail('You already locked a prediction for round ' + nextRound + ' — locked means locked.');
+
+          var lockedAt = new Date().toISOString();
+          var message =
+            'Wheel Predict League — Prediction Lock\n' +
+            'Wallet: ' + account + '\n' +
+            'Round: ' + nextRound + '\n' +
+            'Call: ' + (call === 'run' ? 'RUN' : 'NAP') + '\n' +
+            'Work: ' + work + '\n' +
+            'Blocks: ' + blocks + '\n' +
+            'Locked at: ' + lockedAt + '\n' +
+            'Free to sign. No transaction, no gas.';
+
+          var btn = $('lockBtn'); btn.disabled = true; btn.textContent = 'Waiting for signature…';
+          provider().request({ method:'personal_sign', params:[message, account] })
+            .then(function(sig){
+              var pred = { name:name, address:account, round:nextRound, call:call, work:work,
+                           blocks:blocks, lockedAt:lockedAt, message:message, signature:sig,
+                           verified:false, scored:false, score:null };
+              if(window.ethers && ethers.verifyMessage){
+                try {
+                  pred.verified = ethers.verifyMessage(message, sig).toLowerCase() === account.toLowerCase();
+                } catch(err){ pred.verified = false; }
+              }
+              preds.push(pred);
+              renderPreds(); renderBoard();
+              msg.textContent = 'Locked and signed for round ' + nextRound + (pred.verified ? ' — signature verified against your wallet.' : '.');
+              msg.classList.add('ok');
+            })
+            .catch(function(){
+              fail('Signature rejected in the wallet — the prediction was not locked.');
+            })
+            .then(function(){ btn.disabled = false; btn.textContent = 'Sign & lock prediction'; });
+        });
+
+        /* ---------- leaderboard / follow / copy ---------- */
+        function callText(p){ return (p.call === 'run' ? 'RUN ' : 'NAP ') + p.work + ' / ' + p.blocks; }
+        function renderBoard(){
+          var rows = demos.map(function(d){
+            return { name:d.name, points:d.points, rounds:d.rounds, streak:d.streak,
+                     acc:d.acc, call:callText(d), demo:d, you:false };
+          });
+          var myAcc = myStats.rounds ? Math.round(100 * myStats.correct / myStats.rounds) : null;
+          var last = preds.length ? preds[preds.length - 1] : null;
+          rows.push({ name:(($('pName').value || '').trim() || (account ? shortAddr(account) : 'You')) + ' (you)',
+                      points:myStats.points, rounds:myStats.rounds, streak:myStats.streak,
+                      acc:myAcc, call: (last && last.round === nextRound) ? callText(last) : '—', demo:null, you:true });
+          rows.sort(function(a,b){ return b.points - a.points; });
+          var body = $('boardBody'); body.innerHTML = '';
+          rows.forEach(function(r, i){
+            var tr = document.createElement('tr');
+            if(r.you) tr.className = 'you';
+            var action = '';
+            if(r.demo){
+              var f = follows[r.demo.id];
+              action = '<button type="button" class="btn small ' + (f ? '' : 'ghosty') + '" data-act="follow" data-id="' + r.demo.id + '">' + (f ? 'Following' : 'Follow') + '</button> ' +
+                       '<button type="button" class="btn small ghosty" data-act="copy" data-id="' + r.demo.id + '">Copy</button>';
+            }
+            tr.innerHTML = '<td class="rank">' + (i + 1) + '</td><td>' + esc(r.name) + (r.demo ? ' <span class="badge">demo</span>' : '') + '</td>' +
+              '<td class="num">' + r.points.toLocaleString('en-US') + '</td>' +
+              '<td class="num opt">' + r.rounds + '</td><td class="num opt">' + r.streak + '</td>' +
+              '<td class="num opt">' + (r.acc === null ? '—' : r.acc + '%') + '</td>' +
+              '<td>' + esc(r.call) + '</td><td style="white-space:nowrap">' + action + '</td>';
+            body.appendChild(tr);
+          });
+          renderFeed();
+        }
+        function renderFeed(){
+          var feed = $('feedList'); feed.innerHTML = '';
+          var list = demos.filter(function(d){ return follows[d.id]; });
+          if(!list.length){
+            feed.innerHTML = '<p class="small">You\'re not following anyone yet — tap Follow next to a player on the leaderboard.</p>';
+            return;
+          }
+          list.forEach(function(d){
+            var div = document.createElement('div');
+            div.className = 'feeditem';
+            div.innerHTML = '<span><strong>' + esc(d.name) + '</strong> calls <strong>' + callText(d) + '</strong> for round ' + nextRound + '</span>' +
+              '<button type="button" class="btn small ghosty" data-act="copy" data-id="' + d.id + '">Copy this call</button>';
+            feed.appendChild(div);
+          });
+        }
+        document.addEventListener('click', function(e){
+          var b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
+          if(!b) return;
+          var d = demos.filter(function(x){ return x.id === b.getAttribute('data-id'); })[0];
+          if(!d) return;
+          if(b.getAttribute('data-act') === 'follow'){
+            follows[d.id] = !follows[d.id];
+            renderBoard();
+          } else if(b.getAttribute('data-act') === 'copy'){
+            setCall(d.call);
+            workEl.value = d.work; blocksEl.value = d.blocks;
+            var msg = $('formMsg'); msg.className = 'msg ok';
+            msg.textContent = 'Copied ' + d.name + '\'s call into the form — make it yours, then sign & lock it.';
+            window.scrollTo({ top: $('predForm').getBoundingClientRect().top + window.scrollY - 90, behavior:'smooth' });
+          }
+        });
+        $('pName').addEventListener('input', renderBoard);
+
+        /* ---------- live refresh + scoring ---------- */
+        function tryScore(settlements){
+          var changed = false;
+          preds.forEach(function(p){
+            if(p.scored) return;
+            var hit = null;
+            (settlements.recentSettlements || []).forEach(function(sx){
+              if(+sx.settledThroughRound === p.round) hit = sx;
+            });
+            if(hit){
+              var res = score(p, +hit.workAdded, +hit.completedBlockCount);
+              p.scored = true; p.score = res.points;
+              myStats.points += res.points; myStats.rounds += 1;
+              if(res.correct){ myStats.correct += 1; myStats.streak += 1; } else { myStats.streak = 0; }
+              changed = true;
+            }
+          });
+          if(changed){ renderPreds(); renderBoard(); }
+        }
+        $('refreshBtn').addEventListener('click', function(){
+          var note = $('refreshNote'); note.textContent = 'Contacting the Squeekchain API…';
+          fetchT('https://api.squeekchain.com/v1/status', 3000)
+            .then(function(d){
+              var m = d.measurement || {}, b = d.builder || {};
+              var settled = b.anchor && b.anchor.settledThroughRound;
+              if(settled){
+                nextRound = +settled + 1;
+                $('stSettled').textContent = settled;
+                $('stNext').textContent = String(nextRound);
+                $('formRound').textContent = String(nextRound);
+                document.querySelector('.predRound').textContent = String(nextRound);
+                document.querySelector('.botRound').textContent = String(nextRound);
+                renderFeed();
+              }
+              if(m.coreStatus){
+                var running = m.coreStatus !== 'IDLE';
+                $('stStatus').textContent = running ? m.coreStatus + ' — running' : 'IDLE — napping';
+                $('statusDot').className = 'dot ' + (running ? 'run' : 'idle');
+              }
+              if(m.cumulativeWorkUnits) $('stWork').textContent = Number(m.cumulativeWorkUnits).toLocaleString('en-US');
+              if(m.distanceMm) $('stDist').textContent = (Number(m.distanceMm) / 1e6).toFixed(2) + ' km';
+              if(b.anchor && b.anchor.blockHeight) $('stBlocks').textContent = Number(b.anchor.blockHeight).toLocaleString('en-US');
+              note.textContent = 'Live data updated.';
+              return fetchT('https://api.squeekchain.com/v1/settlements', 3000)
+                .then(function(sd){ tryScore(sd); })
+                .catch(function(){});
+            })
+            .catch(function(){
+              note.textContent = 'API did not answer in time — showing the build-time snapshot.';
+            });
+        });
+
+        renderWallet(); renderPreds(); renderBoard();
+      })();
+    </script>
+  </body>
+</html>
