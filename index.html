@@ -3,105 +3,146 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="icon" href="data:," />
     <title>Wheel Predict League — Wallet Edition</title>
     <style>
       :root{
-        --bg:#f6f4ef; --surface:#fffdf8; --surface2:#efe9dc; --ink:#1d1a14; --muted:#6b6353;
-        --line:#ddd3bf; --accent:#b3541e; --accent-ink:#fff; --good:#2e7d46; --bad:#b3372e;
-        --chip:#f3e8d3; --shadow:0 1px 3px rgba(60,45,20,.12); --gold:#a97b12;
-      }
-      @media (prefers-color-scheme: dark){
-        :root{
-          --bg:#171410; --surface:#211d17; --surface2:#2a251d; --ink:#f0e9da; --muted:#a89c85;
-          --line:#3d362a; --accent:#e07f3e; --accent-ink:#1d1408; --good:#6fce8d; --bad:#ff8a7a;
-          --chip:#33291b; --shadow:0 1px 3px rgba(0,0,0,.5); --gold:#e3b341;
-        }
+        --blue:#0000ff; --white:#ffffff; --ink:#0b0b0e; --muted:#63636e;
+        --line:#e2e2e9; --line-strong:#c6c6d1; --tint:#f2f2ff; --tint2:#e9e9ff;
+        --good:#0000ff; --bad:#d40000; --gold:#0000ff;
+        --sans:"Inter Tight","Inter",-apple-system,"Helvetica Neue",Arial,sans-serif;
+        --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
       }
       *{box-sizing:border-box}
-      body{margin:0;background:var(--bg);color:var(--ink);
-        font-family:ui-rounded,"Avenir Next","Segoe UI",system-ui,-apple-system,sans-serif;
-        line-height:1.55;-webkit-text-size-adjust:100%}
-      .wrap{max-width:920px;margin:0 auto;padding:20px 16px 56px}
-      h1{font-size:clamp(27px,5vw,40px);line-height:1.15;margin:6px 0 8px;letter-spacing:-.01em}
-      h2{font-size:20px;margin:0 0 10px}
-      h3{font-size:16px;margin:0 0 6px}
+      body{margin:0;background:var(--white);color:var(--ink);
+        font-family:var(--sans);font-size:16px;
+        line-height:1.6;-webkit-text-size-adjust:100%;-webkit-font-smoothing:antialiased}
+      .wrap{max-width:1120px;margin:0 auto;padding:0 24px 80px}
+      /* ---------- top bar (mono, hairline) ---------- */
+      .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+        padding:16px 0 14px;border-bottom:1px solid var(--line);
+        font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+      .topbar .brand{font-weight:500;color:var(--ink)}
+      .topbar nav{display:flex;gap:22px}
+      .topbar a{color:var(--muted);text-decoration:none}
+      .topbar a:hover{color:var(--blue)}
+      /* ---------- hero (Nillion-style blue field) ---------- */
+      .hero{background:var(--blue);color:var(--white);margin-top:28px;padding:52px 40px 46px}
+      .hero .badge{background:transparent;color:var(--white);border:1px solid rgba(255,255,255,.85)}
+      h1{font-size:clamp(42px,6.5vw,80px);font-weight:400;line-height:1.05;letter-spacing:-.025em;
+        margin:22px 0 18px}
+      .hero .lede{color:rgba(255,255,255,.88)}
+      .hero .lede strong{color:var(--white)}
+      h2{font-size:24px;font-weight:500;letter-spacing:-.015em;line-height:1.25;margin:0 0 12px}
+      h3{font-size:16px;font-weight:600;margin:0 0 6px}
       p{margin:0 0 10px}
-      .lede{color:var(--muted);font-size:16px;max-width:64ch}
-      .badge{display:inline-block;background:var(--chip);color:var(--ink);border:1px solid var(--line);
-        border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600}
-      .badge.good{color:var(--good)} .badge.warn{color:var(--gold)}
-      .grid{display:grid;gap:14px;margin-top:16px}
+      .lede{color:var(--muted);font-size:17px;line-height:1.6;max-width:62ch}
+      .badge{display:inline-block;background:var(--white);color:var(--ink);border:1px solid var(--line-strong);
+        border-radius:0;padding:4px 10px;font-family:var(--mono);font-size:11px;font-weight:500;
+        letter-spacing:.09em;text-transform:uppercase}
+      .badge.good{color:var(--blue);border-color:var(--blue)} .badge.warn{color:var(--bad);border-color:var(--bad)}
+      .grid{display:grid;gap:20px;margin-top:20px}
       @media(min-width:720px){.grid.two{grid-template-columns:1fr 1fr}}
-      .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
-        padding:18px;box-shadow:var(--shadow)}
-      .stat-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
-      .stat{flex:1 1 120px;background:var(--surface2);border-radius:10px;padding:10px 12px}
-      .stat b{display:block;font-size:22px;line-height:1.2}
-      .stat span{font-size:12.5px;color:var(--muted)}
-      .dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);vertical-align:middle;margin-right:6px}
-      .dot.idle{background:#c98a1b}.dot.run{background:var(--good)}
-      label{display:block;font-size:13.5px;font-weight:600;margin:12px 0 5px}
-      input[type=text],input[type=number]{width:100%;padding:11px 12px;border-radius:10px;
-        border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:16px}
-      .seg{display:flex;gap:8px}
-      .seg button{flex:1;padding:11px;border-radius:10px;border:1px solid var(--line);
-        background:var(--surface2);color:var(--ink);font-size:15px;font-weight:700;cursor:pointer}
-      .seg button.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-      .btn{display:inline-block;width:100%;margin-top:16px;padding:13px;border:none;border-radius:11px;
-        background:var(--accent);color:var(--accent-ink);font-size:16px;font-weight:700;cursor:pointer}
-      .btn:active{transform:translateY(1px)}
-      .btn:disabled{opacity:.55;cursor:not-allowed}
-      .btn.ghost{width:auto;background:var(--surface2);color:var(--ink);border:1px solid var(--line);
-        padding:8px 14px;font-size:14px;margin-top:0}
-      .btn.small{width:auto;padding:6px 12px;font-size:13px;margin-top:0;border-radius:8px}
-      .btn.small.ghosty{background:var(--surface2);color:var(--ink);border:1px solid var(--line)}
-      .msg{margin-top:12px;font-size:14.5px;min-height:1.4em}
-      .msg.ok{color:var(--good)} .msg.err{color:var(--bad)}
-      table{width:100%;border-collapse:collapse;font-size:14px}
-      th,td{padding:8px 6px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
-      th{font-size:12.5px;color:var(--muted);font-weight:700}
+      .card{background:var(--white);border:1px solid var(--line);border-radius:0;
+        padding:28px;box-shadow:none}
+      .stat-row{display:flex;flex-wrap:wrap;gap:0;margin-top:8px;border:1px solid var(--line)}
+      .stat{flex:1 1 140px;background:var(--white);border-radius:0;padding:16px 18px;
+        border-right:1px solid var(--line)}
+      .stat:last-child{border-right:none}
+      .stat b{display:block;font-size:27px;font-weight:500;letter-spacing:-.02em;line-height:1.2}
+      .stat span{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+      .dot{display:inline-block;width:9px;height:9px;border-radius:0;background:var(--muted);vertical-align:middle;margin-right:9px}
+      .dot.idle{background:#b9b9c4}.dot.run{background:var(--blue)}
+      label{display:block;font-family:var(--mono);font-size:11.5px;font-weight:500;letter-spacing:.09em;
+        text-transform:uppercase;color:var(--muted);margin:18px 0 7px}
+      input[type=text],input[type=number]{width:100%;padding:12px 13px;border-radius:0;
+        border:1px solid var(--line-strong);background:var(--white);color:var(--ink);
+        font-family:var(--sans);font-size:16px;outline:none}
+      input[type=text]:focus,input[type=number]:focus{border-color:var(--blue)}
+      .seg{display:flex;gap:0}
+      .seg button{flex:1;padding:12px;border-radius:0;border:1px solid var(--line-strong);
+        background:var(--white);color:var(--ink);font-family:var(--mono);font-size:13px;
+        letter-spacing:.08em;text-transform:uppercase;font-weight:500;cursor:pointer}
+      .seg button + button{border-left:none}
+      .seg button.on{background:var(--blue);color:var(--white);border-color:var(--blue)}
+      .btn{display:inline-block;width:100%;margin-top:20px;padding:14px 16px;border:1px solid var(--blue);border-radius:0;
+        background:var(--blue);color:var(--white);font-family:var(--mono);font-size:13.5px;font-weight:500;
+        letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-align:center}
+      .btn:hover{background:var(--white);color:var(--blue)}
+      .btn:disabled{opacity:.45;cursor:not-allowed}
+      .btn:disabled:hover{background:var(--blue);color:var(--white)}
+      .btn.ghost{width:auto;background:var(--white);color:var(--blue);border:1px solid var(--blue);
+        padding:9px 16px;font-size:12px;margin-top:0}
+      .btn.ghost:hover{background:var(--blue);color:var(--white)}
+      .btn.small{width:auto;padding:8px 14px;font-size:12px;margin-top:0;border-radius:0}
+      .btn.small.ghosty{background:var(--white);color:var(--ink);border:1px solid var(--line-strong)}
+      .btn.small.ghosty:hover{border-color:var(--blue);color:var(--blue)}
+      .msg{margin-top:14px;font-size:14.5px;min-height:1.4em}
+      .msg.ok{color:var(--blue)} .msg.err{color:var(--bad)}
+      table{width:100%;border-collapse:collapse;font-size:14.5px}
+      th,td{padding:11px 8px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
+      th{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:500}
+      tbody tr:hover td{background:var(--tint)}
       td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
-      .stack{display:grid;gap:14px;margin-top:14px}
-      .pred{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}
+      .stack{display:grid;gap:0;margin-top:14px;border:1px solid var(--line)}
+      .pred{border:none;border-bottom:1px solid var(--line);border-radius:0;padding:18px 20px;background:var(--white)}
+      .pred:last-child{border-bottom:none}
       .pred .top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
-      .pred .who{font-weight:700}
-      .lock{font-size:12px;color:var(--muted)}
-      a{color:var(--accent);word-break:break-all}
-      .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;word-break:break-all}
-      .small{font-size:13px;color:var(--muted)}
+      .pred .who{font-weight:600}
+      .lock{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+      a{color:var(--blue);word-break:break-all}
+      .mono{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+      .small{font-size:13.5px;color:var(--muted);line-height:1.6}
       ul.tight{margin:6px 0 0;padding-left:20px}
-      ul.tight li{margin:4px 0}
-      .botcall{font-size:26px;font-weight:800}
+      ul.tight li{margin:5px 0}
+      .botcall{font-size:32px;font-weight:500;letter-spacing:-.02em;line-height:1.2;margin:14px 0}
       .scrollx{overflow-x:auto}
-      .walletbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
-      .addr{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;font-weight:700}
+      .walletbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;justify-content:space-between}
+      .addr{font-family:var(--mono);font-size:14px;font-weight:500}
       .rowbtns{display:flex;gap:8px;flex-wrap:wrap}
-      .sigbox{background:var(--surface2);border-radius:10px;padding:10px 12px;margin-top:8px}
+      .sigbox{background:var(--tint);border-radius:0;border-left:2px solid var(--blue);padding:12px 14px;margin-top:10px}
       .feeditem{display:flex;justify-content:space-between;gap:10px;align-items:center;
-        border-bottom:1px solid var(--line);padding:10px 0;flex-wrap:wrap}
+        border-bottom:1px solid var(--line);padding:13px 0;flex-wrap:wrap}
       .feeditem:last-child{border-bottom:none}
-      footer{margin-top:26px;color:var(--muted);font-size:13px}
-      .rank{font-weight:800;color:var(--accent)}
-      tr.you td{background:var(--surface2);font-weight:600}
+      footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);
+        font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;line-height:1.9}
+      .rank{font-family:var(--mono);font-weight:500;color:var(--blue)}
+      tr.you td{background:var(--tint2);font-weight:600}
+      tr.you:hover td{background:var(--tint2)}
       @media(max-width:560px){
         .opt{display:none}
-        table{font-size:13px}
-        th,td{padding:7px 4px}
-        .btn.small{padding:5px 8px;font-size:12px}
+        .wrap{padding:0 16px 64px}
+        .hero{padding:36px 22px 32px;margin-top:20px}
+        .card{padding:20px}
+        table{font-size:13.5px}
+        th,td{padding:9px 5px}
+        .btn.small{padding:6px 10px;font-size:11.5px}
         td .btn.small{margin:1px 0}
+        .topbar nav{gap:14px}
       }
     </style>
   </head>
   <body>
     <main class="wrap">
-      <span class="badge">Wallet Edition — wallet-signed predictions</span>
-      <h1>Wheel Predict League</h1>
-      <p class="lede">Call Squeektoshi's next round on Squeekchain: will the hamster <strong>run or nap</strong>,
-        how much <strong>work</strong> will it add, and how many <strong>blocks</strong> will it complete?
-        Connect your wallet, lock your call with a signature before the round settles, and get scored from the
-        real on-chain settlement (Sepolia) — every result carries a tx hash nobody can rewrite.</p>
+      <div class="topbar">
+        <span class="brand">// Wheel Predict League</span>
+        <nav>
+          <a href="https://squeekchain.com" target="_blank" rel="noopener">Squeekchain ↗</a>
+          <a href="https://github.com/locwater3/wheel-predict-league" target="_blank" rel="noopener">GitHub ↗</a>
+        </nav>
+      </div>
+      <header class="hero">
+        <span class="badge">// Wallet Edition — wallet-signed predictions</span>
+        <h1>Wheel Predict League</h1>
+        <p class="lede">Call Squeektoshi's next round on Squeekchain: will the hamster <strong>run or nap</strong>,
+          how much <strong>work</strong> will it add, and how many <strong>blocks</strong> will it complete?
+          Connect your wallet, lock your call with a signature before the round settles, and get scored from the
+          real on-chain settlement (Sepolia) — every result carries a tx hash nobody can rewrite.</p>
+      </header>
 
       <!-- ======= WALLET ======= -->
       <section class="card" style="margin-top:18px" aria-label="Wallet">
