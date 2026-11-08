@@ -12,15 +12,17 @@ https://locwater3.github.io/wheel-predict-league/
 
 - **Connect Wallet** — real EIP-1193 connect/disconnect, Sepolia network badge (chainId 11155111) with switch-network action, silent reconnect
 - **Signed predictions** — each prediction for the next round is locked by a free `personal_sign` over a canonical message (wallet, round, call, work, blocks, timestamp), verified client-side with ethers.js when available
-- **Live Squeekchain data** — live status and recent settlements from `https://api.squeekchain.com/v1/` with a 3-second capped refresh and a baked snapshot fallback, so the page still renders if the API is slow
+- **Live Squeekchain data** — live status and recent settlements from `https://api.squeekchain.com/v1/`, loaded automatically on page open and on Refresh (3-second cap, baked snapshot fallback so the page still renders if the API is slow). The settlements table re-renders live, including rounds settled by zero-work checkpoints
 - **Verifiable scoring** — max 100 points per round, scored from real settlements; every settled round links to its Sepolia Etherscan transaction
-- **SqueekBot baseline** — an AI baseline prediction (median of the last 10 rounds) to beat
+- **SqueekBot baseline** — a live AI baseline (median work/blocks of the last 10 running settlements, recomputed on every refresh) to beat
+- **Persistent on-device record** — your signed predictions, points, streaks, follows and display name are stored in your browser and survive reloads
 - **Follow & Copy** — follow top predictors and copy their call into your prediction form in one tap
 - **Season leaderboard** — with streaks; your own row updates live from your signed predictions
+- **Shared league (optional, free)** — connect a Supabase project (see [LEAGUE_SETUP.md](LEAGUE_SETUP.md)) and every player's signed predictions are published to one shared league: real cross-player leaderboard, follow/copy real players, and anti-cheat by design — a prediction only scores if the league received it before that round's on-chain settlement, and signatures are verified against the claiming wallet
 
 ## Honest limits
 
-- Signed predictions are kept on-device for the browser session in this public static build — there is no shared cross-player database yet. The other leaderboard rivals besides you and SqueekBot are clearly labeled demo samples.
+- Without the shared-league backend connected, predictions live only on each player's own device and the other leaderboard rivals besides you and SqueekBot are clearly labeled demo samples. Turning the shared league on takes one free Supabase project and two public config values — full steps in [LEAGUE_SETUP.md](LEAGUE_SETUP.md).
 - This is a Squeekchain (Sepolia testnet) project. Predictions are signed messages only — no real-money transactions.
 
 ## How to play
@@ -33,6 +35,6 @@ https://locwater3.github.io/wheel-predict-league/
 
 ## Tech
 
-Single self-contained `index.html` — vanilla HTML/CSS/JS plus ethers.js from CDN when available, and the public Squeekchain API. No build step, no backend, no API keys.
+Single self-contained `index.html` — vanilla HTML/CSS/JS plus ethers.js from CDN when available, and the public Squeekchain API. No build step and no API keys; the optional shared league uses Supabase's REST API with a public anon key protected by row-level security (schema in `supabase/schema.sql`).
 
 Built for the Squeekchain Genesis / Code program: https://squeekchain.com/genesis/code

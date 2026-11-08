@@ -177,9 +177,8 @@
           <div class="stat"><b id="stDist">6.59 km</b><span>Total distance</span></div>
           <div class="stat"><b id="stBlocks">1,999</b><span>Block height</span></div>
         </div>
-        <p class="small" style="margin-top:12px">Snapshot from the Squeekchain API at
-          <strong>18:43, Saturday 7 Nov 2026</strong> (Bangkok time). Rounds last 600 seconds (10 minutes).
-          Squeektoshi has been on a long nap streak since round 504 — total work has barely moved.</p>
+        <p class="small" id="snapNote" style="margin-top:12px">Snapshot from the Squeekchain API at build time.
+          Rounds last 600 seconds (10 minutes). Press Refresh — or just open the page — to pull the live state.</p>
         <button class="btn ghost" id="refreshBtn" type="button">Refresh live data</button>
         <span class="small" id="refreshNote" style="margin-left:8px"></span>
       </section>
@@ -211,9 +210,9 @@
         <!-- ======= SQUEEKBOT ======= -->
         <section class="card" aria-label="SqueekBot">
           <h2>SqueekBot — the AI baseline</h2>
-          <p class="small">A simple machine baseline: the median of the last 10 settled rounds. The long nap
-            streak (rounds 504–526) has it fully committed to a nap.</p>
-          <p class="botcall">NAP — work 0 · blocks 0</p>
+          <p class="small">A simple machine baseline: the median of the last 10 settled running rounds,
+            recomputed live from the Squeekchain API every time this page refreshes.</p>
+          <p class="botcall" id="botCall">NAP — work 0 · blocks 0</p>
           <p>SqueekBot's call for round <span class="botRound">527</span> is already locked below.
             Beating the Bot in your first round is every new player's first target.</p>
           <h3 style="margin-top:14px">Scoring (max 100 pts / round)</h3>
@@ -233,7 +232,7 @@
         <div class="stack" id="predList">
           <div class="pred">
             <div class="top"><span class="who">SqueekBot</span><span class="lock">Locked · AI baseline</span></div>
-            <p style="margin:4px 0 0">NAP · work <strong>0</strong> · blocks <strong>0</strong></p>
+            <p style="margin:4px 0 0" id="botPredCall">NAP · work <strong>0</strong> · blocks <strong>0</strong></p>
           </div>
         </div>
         <p class="small" id="predEmpty">No player has locked a prediction on this device yet — be the first using the form above.</p>
@@ -242,7 +241,7 @@
       <!-- ======= LEADERBOARD ======= -->
       <section class="card" style="margin-top:20px" aria-label="Season leaderboard">
         <h2>Season leaderboard</h2>
-        <p class="small">Your row is live: it fills in with your own signed predictions from this device and scores
+        <p class="small" id="boardNote">Your row is live: it fills in with your own signed predictions from this device and scores
           as rounds settle. The other rows are <strong>demo rivals</strong> — sample records included so you can try
           Follow and Copy; they are not real players.</p>
         <div class="scrollx">
@@ -269,7 +268,7 @@
         <div class="scrollx">
         <table>
           <thead><tr><th>Round</th><th>Result</th><th class="num">Work</th><th class="num">Blocks</th><th>Tx hash</th></tr></thead>
-          <tbody>
+          <tbody id="settlesBody">
             <tr><td>503</td><td>Run</td><td class="num">67</td><td class="num">8</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x1d2965707d9524fd67cb4befca0bc41fb0166ae40ebd108afdb1f40c19791733" target="_blank" rel="noopener">0x1d2965…1733</a></td></tr>
             <tr><td>502</td><td>Run</td><td class="num">435</td><td class="num">52</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0xa5f560fe0bda68c3caaffca161d1bd3b7027596592d93d71601c3bebff69ca82" target="_blank" rel="noopener">0xa5f560…ca82</a></td></tr>
             <tr><td>501</td><td>Run</td><td class="num">528</td><td class="num">64</td><td class="mono"><a href="https://sepolia.etherscan.io/tx/0x84e5476bb0f16123ecce6027dd27df4e8662e0f8bfaba4cac89c6b4746e8b157" target="_blank" rel="noopener">0x84e547…b157</a></td></tr>
@@ -300,9 +299,10 @@
       </section>
 
       <footer>
-        Wheel Predict League — Wallet Edition. Predictions are signed with your wallet and kept on this device
-        for this browser session; the shared cross-player league database and public deployment are the next stage
-        of the full version. Data: public Squeekchain API (api.squeekchain.com), Sepolia testnet — SQK has no real-world value.
+        Wheel Predict League — Wallet Edition. Predictions are signed with your wallet and stored on this device
+        (they survive reloads). When the shared league backend is connected, signed predictions are also published
+        to the league and scored against every other player. Data: public Squeekchain API (api.squeekchain.com),
+        Sepolia testnet — SQK has no real-world value.
       </footer>
     </main>
 
@@ -313,6 +313,17 @@
         var SEPOLIA = '0xaa36a7'; // 11155111
         var nextRound = 527;
 
+        /* ---------- shared league config (Supabase REST — see LEAGUE_SETUP.md) ---------- */
+        var LEAGUE = { url:'', anonKey:'' };
+        function leagueOn(){ return !!(LEAGUE.url && LEAGUE.anonKey); }
+
+        /* ---------- persistent on-device storage ---------- */
+        var store = {
+          get:function(k, d){ try { var v = localStorage.getItem('wpl:' + k); return v ? JSON.parse(v) : d; } catch(e){ return d; } },
+          set:function(k, v){ try { localStorage.setItem('wpl:' + k, JSON.stringify(v)); } catch(e){} }
+        };
+        function saveLocal(){ store.set('preds', preds); store.set('follows', follows); store.set('stats', myStats); }
+
         /* ---------- fallback ethers loader (for signature verification only) ---------- */
         if(!window.ethers){
           var s = document.createElement('script');
@@ -322,9 +333,12 @@
 
         /* ---------- state (in-memory, this session) ---------- */
         var account = null;
-        var preds = [];               // my signed predictions
-        var follows = {};             // demo player id -> true
-        var myStats = { points:0, rounds:0, streak:0, correct:0 };
+        var preds = store.get('preds', []);   // my signed predictions (persisted on this device)
+        var follows = store.get('follows', {});   // followed player id/wallet -> true
+        var myStats = store.get('stats', { points:0, rounds:0, streak:0, correct:0 });
+        var shared = [];              // other players' predictions from the shared league
+        var lastResults = {};         // round -> {work, blocks, ts} from the latest settlements fetch
+        var botCall = { call:'nap', work:0, blocks:0 };
         var demos = [
           { id:'sage',  name:'SqueekSage',     points:4820, rounds:52, streak:9,  acc:71, call:'nap', work:0,   blocks:0  },
           { id:'rpm',   name:'RPM Oracle',     points:4655, rounds:52, streak:4,  acc:68, call:'run', work:276, blocks:33 },
@@ -429,7 +443,7 @@
 
         function renderPreds(){
           var list = $('predList');
-          var mine = list.querySelectorAll('.pred.mine');
+          var mine = list.querySelectorAll('.pred.mine, .pred.shared');
           for(var i = 0; i < mine.length; i++) mine[i].remove();
           preds.forEach(function(p){
             var div = document.createElement('div');
@@ -450,7 +464,54 @@
                 : 'Stored with the prediction. Open this page in a full browser to verify it against the wallet.') + '</span></div>';
             list.appendChild(div);
           });
-          $('predEmpty').style.display = preds.length ? 'none' : '';
+          var others = shared.filter(function(p){ return p.round === nextRound && (!account || p.address.toLowerCase() !== account.toLowerCase()); });
+          others.forEach(function(p){
+            var div = document.createElement('div');
+            div.className = 'pred shared';
+            var when = new Date(p.lockedAt);
+            var hh = ('0' + when.getHours()).slice(-2), mm = ('0' + when.getMinutes()).slice(-2);
+            div.innerHTML =
+              '<div class="top"><span class="who">' + esc(p.name) + '</span>' +
+              '<span class="lock">League · signed &amp; locked ' + hh + ':' + mm + ' · ' + shortAddr(p.address) + '</span></div>' +
+              '<p style="margin:4px 0 0">' + (p.call === 'run' ? 'RUN' : 'NAP') + ' · work <strong>' + p.work + '</strong> · blocks <strong>' + p.blocks + '</strong> · round <strong>' + p.round + '</strong></p>' +
+              '<div class="sigbox"><span class="small">Signature</span><br><span class="mono">' + esc((p.signature || '').slice(0, 42)) + '…</span><br>' +
+              '<span class="small">' + (p.verified ? 'Verified: this signature recovers to the signing wallet.' : 'Signature stored with the prediction.') + '</span></div>';
+            list.appendChild(div);
+          });
+          $('predEmpty').style.display = (preds.length || others.length) ? 'none' : '';
+          $('predEmpty').textContent = leagueOn()
+            ? 'No one has locked a prediction for this round yet — be the first using the form above.'
+            : 'No player has locked a prediction on this device yet — be the first using the form above.';
+        }
+
+        /* ---------- shared league backend (Supabase REST) ---------- */
+        function leagueHeaders(){ return { 'apikey': LEAGUE.anonKey, 'Authorization': 'Bearer ' + LEAGUE.anonKey, 'Content-Type': 'application/json' }; }
+        function leagueLoad(){
+          if(!leagueOn()) return;
+          fetch(LEAGUE.url + '/rest/v1/predictions?select=*&order=created_at.asc&limit=1000', { headers: leagueHeaders() })
+            .then(function(r){ return r.json(); })
+            .then(function(rows){
+              if(!Array.isArray(rows)) return;
+              shared = rows.map(function(x){
+                var o = { name:x.name, address:x.wallet, round:+x.round, call:x.call, work:+x.work, blocks:+x.blocks,
+                          lockedAt:x.created_at, sharedAt:x.created_at, message:x.message, signature:x.signature, verified:false };
+                if(window.ethers && ethers.verifyMessage && x.message && x.signature){
+                  try { o.verified = ethers.verifyMessage(x.message, x.signature).toLowerCase() === (x.wallet || '').toLowerCase(); } catch(e){ o.verified = false; }
+                }
+                return o;
+              });
+              renderPreds(); renderBoard();
+            })
+            .catch(function(){});
+        }
+        function leaguePost(p){
+          if(!leagueOn()) return;
+          fetch(LEAGUE.url + '/rest/v1/predictions', {
+            method:'POST',
+            headers: Object.assign(leagueHeaders(), { 'Prefer': 'return=minimal' }),
+            body: JSON.stringify({ wallet:p.address.toLowerCase(), name:p.name, round:p.round, call:p.call,
+                                   work:p.work, blocks:p.blocks, locked_at:p.lockedAt, message:p.message, signature:p.signature })
+          }).then(function(){ leagueLoad(); }).catch(function(){});
         }
 
         $('predForm').addEventListener('submit', function(e){
@@ -490,7 +551,8 @@
                   pred.verified = ethers.verifyMessage(message, sig).toLowerCase() === account.toLowerCase();
                 } catch(err){ pred.verified = false; }
               }
-              preds.push(pred);
+              preds.push(pred); saveLocal();
+              if(leagueOn()) leaguePost(pred);
               renderPreds(); renderBoard();
               msg.textContent = 'Locked and signed for round ' + nextRound + (pred.verified ? ' — signature verified against your wallet.' : '.');
               msg.classList.add('ok');
@@ -503,26 +565,72 @@
 
         /* ---------- leaderboard / follow / copy ---------- */
         function callText(p){ return (p.call === 'run' ? 'RUN ' : 'NAP ') + p.work + ' / ' + p.blocks; }
-        function renderBoard(){
-          var rows = demos.map(function(d){
-            return { name:d.name, points:d.points, rounds:d.rounds, streak:d.streak,
-                     acc:d.acc, call:callText(d), demo:d, you:false };
+        function aggregatePlayers(){
+          var byWallet = {};
+          function add(p, you){
+            var key = (p.address || '').toLowerCase();
+            if(!key) return;
+            var pl = byWallet[key] || (byWallet[key] = { id:key, name:p.name, you:!!you, seen:{}, scored:[], next:null });
+            if(p.name) pl.name = p.name;
+            if(you) pl.you = true;
+            if(p.round === nextRound && !pl.next) pl.next = p;
+            var res = lastResults[p.round];
+            if(res && !pl.seen[p.round]){
+              if(p.sharedAt && res.ts && Date.parse(p.sharedAt) >= Date.parse(res.ts)) return; // received after settlement — does not count
+              pl.seen[p.round] = true;
+              var s = score(p, res.work, res.blocks);
+              pl.scored.push({ round:p.round, points:s.points, correct:s.correct });
+            }
+          }
+          preds.forEach(function(p){ add(p, true); });
+          shared.forEach(function(p){ add(p, account && p.address.toLowerCase() === account.toLowerCase()); });
+          return Object.keys(byWallet).map(function(k){
+            var pl = byWallet[k];
+            var pts = 0, corr = 0;
+            pl.scored.forEach(function(s){ pts += s.points; if(s.correct) corr += 1; });
+            var desc = pl.scored.slice().sort(function(a,b){ return b.round - a.round; });
+            var streak = 0;
+            for(var i = 0; i < desc.length; i++){ if(desc[i].correct) streak += 1; else break; }
+            return { name:pl.name, points:pts, rounds:pl.scored.length, streak:streak,
+                     acc: pl.scored.length ? Math.round(100 * corr / pl.scored.length) : null,
+                     call: pl.next ? callText(pl.next) : '—', actId: pl.you ? null : pl.id, you:pl.you, demo:null };
           });
-          var myAcc = myStats.rounds ? Math.round(100 * myStats.correct / myStats.rounds) : null;
-          var last = preds.length ? preds[preds.length - 1] : null;
-          rows.push({ name:(($('pName').value || '').trim() || (account ? shortAddr(account) : 'You')) + ' (you)',
-                      points:myStats.points, rounds:myStats.rounds, streak:myStats.streak,
-                      acc:myAcc, call: (last && last.round === nextRound) ? callText(last) : '—', demo:null, you:true });
+        }
+        function renderBoard(){
+          var rows;
+          if(leagueOn()){
+            $('boardNote').textContent = 'Shared league connected — every row is a real player whose prediction was wallet-signed and received by the league before that round settled. Scores come from on-chain settlements.';
+            rows = aggregatePlayers();
+            if(!rows.some(function(r){ return r.you; })){
+              var myAcc0 = myStats.rounds ? Math.round(100 * myStats.correct / myStats.rounds) : null;
+              var last0 = preds.length ? preds[preds.length - 1] : null;
+              rows.push({ name:(($('pName').value || '').trim() || (account ? shortAddr(account) : 'You')) + ' (you)',
+                          points:myStats.points, rounds:myStats.rounds, streak:myStats.streak, acc:myAcc0,
+                          call:(last0 && last0.round === nextRound) ? callText(last0) : '—', actId:null, you:true, demo:null });
+            } else {
+              rows.forEach(function(r){ if(r.you) r.name = r.name + ' (you)'; });
+            }
+          } else {
+            rows = demos.map(function(d){
+              return { name:d.name, points:d.points, rounds:d.rounds, streak:d.streak,
+                       acc:d.acc, call:callText(d), actId:d.id, you:false, demo:d };
+            });
+            var myAcc = myStats.rounds ? Math.round(100 * myStats.correct / myStats.rounds) : null;
+            var last = preds.length ? preds[preds.length - 1] : null;
+            rows.push({ name:(($('pName').value || '').trim() || (account ? shortAddr(account) : 'You')) + ' (you)',
+                        points:myStats.points, rounds:myStats.rounds, streak:myStats.streak,
+                        acc:myAcc, call: (last && last.round === nextRound) ? callText(last) : '—', actId:null, you:true, demo:null });
+          }
           rows.sort(function(a,b){ return b.points - a.points; });
           var body = $('boardBody'); body.innerHTML = '';
           rows.forEach(function(r, i){
             var tr = document.createElement('tr');
             if(r.you) tr.className = 'you';
             var action = '';
-            if(r.demo){
-              var f = follows[r.demo.id];
-              action = '<button type="button" class="btn small ' + (f ? '' : 'ghosty') + '" data-act="follow" data-id="' + r.demo.id + '">' + (f ? 'Following' : 'Follow') + '</button> ' +
-                       '<button type="button" class="btn small ghosty" data-act="copy" data-id="' + r.demo.id + '">Copy</button>';
+            if(r.actId){
+              var f = follows[r.actId];
+              action = '<button type="button" class="btn small ' + (f ? '' : 'ghosty') + '" data-act="follow" data-id="' + r.actId + '">' + (f ? 'Following' : 'Follow') + '</button> ' +
+                       '<button type="button" class="btn small ghosty" data-act="copy" data-id="' + r.actId + '">Copy</button>';
             }
             tr.innerHTML = '<td class="rank">' + (i + 1) + '</td><td>' + esc(r.name) + (r.demo ? ' <span class="badge">demo</span>' : '') + '</td>' +
               '<td class="num">' + r.points.toLocaleString('en-US') + '</td>' +
@@ -535,7 +643,17 @@
         }
         function renderFeed(){
           var feed = $('feedList'); feed.innerHTML = '';
-          var list = demos.filter(function(d){ return follows[d.id]; });
+          var list = [];
+          if(leagueOn()){
+            aggregatePlayers().forEach(function(pl){
+              // find the followed player's next-round prediction object
+              var nx = null;
+              shared.forEach(function(p){ if(p.address.toLowerCase() === pl.actId && p.round === nextRound) nx = p; });
+              if(pl.actId && follows[pl.actId] && nx) list.push({ id:pl.actId, name:pl.name, callObj:nx });
+            });
+          } else {
+            list = demos.filter(function(d){ return follows[d.id]; }).map(function(d){ return { id:d.id, name:d.name, callObj:d }; });
+          }
           if(!list.length){
             feed.innerHTML = '<p class="small">You\'re not following anyone yet — tap Follow next to a player on the leaderboard.</p>';
             return;
@@ -543,7 +661,7 @@
           list.forEach(function(d){
             var div = document.createElement('div');
             div.className = 'feeditem';
-            div.innerHTML = '<span><strong>' + esc(d.name) + '</strong> calls <strong>' + callText(d) + '</strong> for round ' + nextRound + '</span>' +
+            div.innerHTML = '<span><strong>' + esc(d.name) + '</strong> calls <strong>' + callText(d.callObj) + '</strong> for round ' + nextRound + '</span>' +
               '<button type="button" class="btn small ghosty" data-act="copy" data-id="' + d.id + '">Copy this call</button>';
             feed.appendChild(div);
           });
@@ -551,12 +669,20 @@
         document.addEventListener('click', function(e){
           var b = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
           if(!b) return;
-          var d = demos.filter(function(x){ return x.id === b.getAttribute('data-id'); })[0];
+          var bid = b.getAttribute('data-id');
+          var d = demos.filter(function(x){ return x.id === bid; })[0];
+          if(!d && leagueOn()){
+            var sp = shared.filter(function(x){ return x.address.toLowerCase() === bid && x.round === nextRound; })[0];
+            if(sp) d = { id:bid, name:sp.name, call:sp.call, work:sp.work, blocks:sp.blocks };
+            else if(b.getAttribute('data-act') === 'follow') d = { id:bid, name:'player' };
+          }
           if(!d) return;
           if(b.getAttribute('data-act') === 'follow'){
             follows[d.id] = !follows[d.id];
+            saveLocal();
             renderBoard();
           } else if(b.getAttribute('data-act') === 'copy'){
+            if(!d.call) return;
             setCall(d.call);
             workEl.value = d.work; blocksEl.value = d.blocks;
             var msg = $('formMsg'); msg.className = 'msg ok';
@@ -564,29 +690,68 @@
             window.scrollTo({ top: $('predForm').getBoundingClientRect().top + window.scrollY - 90, behavior:'smooth' });
           }
         });
-        $('pName').addEventListener('input', renderBoard);
+        $('pName').addEventListener('input', function(){ store.set('name', $('pName').value); renderBoard(); });
 
         /* ---------- live refresh + scoring ---------- */
-        function tryScore(settlements){
+        function buildResults(sd){
+          var map = {};
+          (sd.recentSettlements || []).forEach(function(sx){
+            map[+sx.settledThroughRound] = { work:+sx.workAdded, blocks:+sx.completedBlockCount, ts:sx.blockTimestamp || null };
+          });
+          var ck = (sd.mining && sd.mining.recentCheckpoints) || [];
+          ck.forEach(function(c){
+            if(+c.completedBlockCount === 0){
+              for(var r = +c.afterRound + 1; r <= +c.throughRound; r++){
+                if(!(r in map)) map[r] = { work:0, blocks:0, ts:c.blockTimestamp || null };
+              }
+            }
+          });
+          return map;
+        }
+        function tryScore(sd){
+          lastResults = buildResults(sd);
           var changed = false;
           preds.forEach(function(p){
             if(p.scored) return;
-            var hit = null;
-            (settlements.recentSettlements || []).forEach(function(sx){
-              if(+sx.settledThroughRound === p.round) hit = sx;
-            });
+            var hit = lastResults[p.round];
             if(hit){
-              var res = score(p, +hit.workAdded, +hit.completedBlockCount);
+              var res = score(p, hit.work, hit.blocks);
               p.scored = true; p.score = res.points;
               myStats.points += res.points; myStats.rounds += 1;
               if(res.correct){ myStats.correct += 1; myStats.streak += 1; } else { myStats.streak = 0; }
               changed = true;
             }
           });
-          if(changed){ renderPreds(); renderBoard(); }
+          if(changed){ saveLocal(); renderPreds(); }
+          renderBoard();
         }
-        $('refreshBtn').addEventListener('click', function(){
-          var note = $('refreshNote'); note.textContent = 'Contacting the Squeekchain API…';
+        function renderSettlements(sd){
+          var rows = (sd.recentSettlements || []).slice(0, 10);
+          if(rows.length){
+            var body = $('settlesBody');
+            if(body){
+              body.innerHTML = '';
+              rows.forEach(function(sx){
+                var hash = sx.transactionHash || '';
+                var tr = document.createElement('tr');
+                tr.innerHTML = '<td>' + sx.settledThroughRound + '</td><td>' + (+sx.workAdded > 0 ? 'Run' : 'Nap') + '</td>' +
+                  '<td class="num">' + Number(sx.workAdded).toLocaleString('en-US') + '</td>' +
+                  '<td class="num">' + sx.completedBlockCount + '</td>' +
+                  '<td class="mono">' + (hash ? '<a href="https://sepolia.etherscan.io/tx/' + hash + '" target="_blank" rel="noopener">' + hash.slice(0, 8) + '…' + hash.slice(-4) + '</a>' : '—') + '</td>';
+                body.appendChild(tr);
+              });
+            }
+            // SqueekBot live baseline: median work/blocks of the last 10 running settlements
+            function med(a){ var s = a.slice().sort(function(x,y){ return x - y; }); var m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2); }
+            var bw = med(rows.map(function(sx){ return +sx.workAdded; }));
+            var bb = med(rows.map(function(sx){ return +sx.completedBlockCount; }));
+            botCall = bw > 0 ? { call:'run', work:bw, blocks:bb } : { call:'nap', work:0, blocks:0 };
+            if($('botCall')) $('botCall').textContent = (botCall.call === 'run' ? 'RUN' : 'NAP') + ' — work ' + botCall.work + ' · blocks ' + botCall.blocks;
+            if($('botPredCall')) $('botPredCall').innerHTML = (botCall.call === 'run' ? 'RUN' : 'NAP') + ' · work <strong>' + botCall.work + '</strong> · blocks <strong>' + botCall.blocks + '</strong>';
+          }
+        }
+        function refreshLive(auto){
+          var note = $('refreshNote'); if(!auto) note.textContent = 'Contacting the Squeekchain API…';
           fetchT('https://api.squeekchain.com/v1/status', 3000)
             .then(function(d){
               var m = d.measurement || {}, b = d.builder || {};
@@ -609,16 +774,21 @@
               if(m.distanceMm) $('stDist').textContent = (Number(m.distanceMm) / 1e6).toFixed(2) + ' km';
               if(b.anchor && b.anchor.blockHeight) $('stBlocks').textContent = Number(b.anchor.blockHeight).toLocaleString('en-US');
               note.textContent = 'Live data updated.';
+              if($('snapNote')) $('snapNote').textContent = 'Live from the Squeekchain API — refreshed just now. Rounds last 600 seconds (10 minutes).';
               return fetchT('https://api.squeekchain.com/v1/settlements', 3000)
-                .then(function(sd){ tryScore(sd); })
+                .then(function(sd){ tryScore(sd); renderSettlements(sd); if(leagueOn()) leagueLoad(); })
                 .catch(function(){});
             })
             .catch(function(){
-              note.textContent = 'API did not answer in time — showing the build-time snapshot.';
+              if(!auto) note.textContent = 'API did not answer in time — showing the build-time snapshot.';
             });
-        });
+        }
+        $('refreshBtn').addEventListener('click', function(){ refreshLive(false); });
 
+        if(store.get('name', '')) $('pName').value = store.get('name', '');
         renderWallet(); renderPreds(); renderBoard();
+        refreshLive(true);
+        if(leagueOn()) leagueLoad();
       })();
     </script>
   </body>
