@@ -38,3 +38,12 @@ https://locwater3.github.io/wheel-predict-league/
 Single self-contained `index.html` — vanilla HTML/CSS/JS plus ethers.js from CDN when available, and the public Squeekchain API. No build step and no API keys; the optional shared league uses Supabase's REST API with a public anon key protected by row-level security (schema in `supabase/schema.sql`).
 
 Built for the Squeekchain Genesis / Code program: https://squeekchain.com/genesis/code
+
+## SQK Pool Mode (Sepolia testnet)
+
+Optional on-chain mode alongside the free league: stake testnet **SQK** on whether Squeektoshi **runs or naps** in a Squeekchain round.
+
+- Contract: `SqueekPool` — `0xca75005ff83747A71883D68239d0b3F69ff79e2c` (Sepolia), source in [`contracts/SqueekPool.sol`](contracts/SqueekPool.sol), deployment record in [`contracts/deployment.json`](contracts/deployment.json)
+- Flow: approve SQK → bet on the open round → after the round settles on Squeekchain, the settler records the real work/blocks → winners split the whole pool proportionally, minus a 2% fee
+- If a round ends up one-sided (bets on only one side), it is cancelled and **every stake is refunded in full**
+- Settlement in this v1 is by a trusted settler (the contract owner) submitting the round's real result exactly as published by the Squeekchain API / SqueekCore settlements — each settlement carries an on-chain transaction hash anyone can audit. Testnet SQK has no real-world value.

@@ -226,6 +226,34 @@
         </section>
       </div>
 
+      <!-- ======= SQK POOL MODE ======= -->
+      <section class="card" id="poolCard" style="margin-top:20px" aria-label="SQK pool mode">
+        <h2>// SQK Pool Mode <span class="badge">Sepolia testnet</span></h2>
+        <p class="small" id="poolState">Pool contract not live yet.</p>
+        <div class="stat-row">
+          <div class="stat"><b id="poolRun">0</b><span>Pool RUN (SQK)</span></div>
+          <div class="stat"><b id="poolNap">0</b><span>Pool NAP (SQK)</span></div>
+          <div class="stat"><b id="poolMine">—</b><span>Your bet</span></div>
+          <div class="stat"><b id="poolClaimable">0</b><span>Claimable (SQK)</span></div>
+        </div>
+        <p class="small" style="margin-top:10px">Your SQK balance: <strong id="poolBal">—</strong> · Allowance to pool: <strong id="poolAllow">—</strong></p>
+        <label>Your side for round <span class="poolRound">—</span></label>
+        <div class="seg" role="group" aria-label="Pool side">
+          <button type="button" id="poolSegRun">Run</button>
+          <button type="button" id="poolSegNap" class="on">Nap</button>
+        </div>
+        <label for="poolAmt">Stake (SQK)</label>
+        <input type="number" id="poolAmt" min="0" step="any" value="10" />
+        <div class="rowbtns" style="margin-top:16px">
+          <button class="btn small ghosty" id="poolApproveBtn" type="button">Approve SQK</button>
+          <button class="btn small" id="poolBetBtn" type="button">Place bet</button>
+          <button class="btn small ghosty" id="poolClaimBtn" type="button">Claim</button>
+          <button class="btn small ghosty" id="poolRefreshBtn" type="button">Refresh pool</button>
+        </div>
+        <p class="msg" id="poolMsg" role="status"></p>
+        <p class="small">Stakes are real transactions in testnet SQK (no real-world value) and cost a little Sepolia ETH gas. Winners split the whole pool minus a 2% fee; if a round ends up one-sided, everyone is refunded in full.</p>
+      </section>
+
       <!-- ======= LOCKED PREDICTIONS ======= -->
       <section style="margin-top:20px" aria-label="Locked predictions">
         <h2>Locked predictions for round <span class="predRound">527</span></h2>
@@ -427,6 +455,118 @@
             if(accs && accs.length){ account = accs[0]; renderWallet(); renderBoard(); }
           }).catch(function(){});
         }
+
+        /* ---------- SQK pool mode (on-chain, Sepolia testnet) ---------- */
+        var POOL_ADDRESS = '0xca75005ff83747A71883D68239d0b3F69ff79e2c'; // SqueekPool on Sepolia (see contracts/deployment.json)
+        var SQK_ADDRESS = '0xd78a3956cf63164d1fa1c622ad3c66623162fa1e';
+        var POOL_ABI = [
+          'function bet(uint256 round, uint8 side, uint256 amount)',
+          'function claim(uint256 round)',
+          'function claimable(uint256 round, address player) view returns (uint256)',
+          'function roundInfo(uint256 round) view returns (bool exists, bool settled, bool cancelled, bool outcomeRun, uint256 work, uint256 blocks, uint256 totalNap, uint256 totalRun)',
+          'function myBet(uint256 round, address player) view returns (uint256 amount, uint8 side, bool hasBet, bool claimed)'
+        ];
+        var TOKEN_ABI = [
+          'function balanceOf(address) view returns (uint256)',
+          'function allowance(address, address) view returns (uint256)',
+          'function approve(address, uint256) returns (bool)'
+        ];
+        var poolSide = 0; // contract enum: 0 = Nap, 1 = Run
+        function poolOn(){ return !!POOL_ADDRESS; }
+        function poolContracts(){
+          if(!poolOn() || !window.ethers || !provider()) return Promise.resolve(null);
+          return new ethers.BrowserProvider(provider()).getSigner().then(function(signer){
+            return { pool: new ethers.Contract(POOL_ADDRESS, POOL_ABI, signer),
+                     token: new ethers.Contract(SQK_ADDRESS, TOKEN_ABI, signer) };
+          }).catch(function(){ return null; });
+        }
+        function fmtSqk(v){ try { return Number(ethers.formatUnits(v, 18)).toLocaleString('en-US', { maximumFractionDigits: 4 }); } catch(e){ return '0'; } }
+        function poolRoundsList(){
+          var list = store.get('poolRounds', []);
+          if(list.indexOf(nextRound) === -1) list = list.concat([nextRound]);
+          return list;
+        }
+        function renderPool(){
+          var els = document.querySelectorAll('.poolRound');
+          for(var i = 0; i < els.length; i++) els[i].textContent = String(nextRound);
+          if(!poolOn()){
+            $('poolState').textContent = 'Pool contract not live yet. When it is, you can stake testnet SQK on RUN or NAP for the round — winners split the pool. Testnet SQK has no real-world value.';
+            $('poolApproveBtn').disabled = true; $('poolBetBtn').disabled = true; $('poolClaimBtn').disabled = true;
+            return;
+          }
+          $('poolState').textContent = 'Pool is live on Sepolia. Approve SQK once, place your bet before the round settles, then claim if your side wins. One side per round; a one-sided round refunds everyone in full.';
+          if(!account) return;
+          poolContracts().then(function(c){
+            if(!c) return;
+            var rounds = poolRoundsList();
+            var claimableCalls = rounds.map(function(r){ return c.pool.claimable(r, account).catch(function(){ return 0n; }); });
+            return Promise.all([
+              c.pool.roundInfo(nextRound).catch(function(){ return null; }),
+              c.pool.myBet(nextRound, account).catch(function(){ return null; }),
+              c.token.balanceOf(account).catch(function(){ return null; }),
+              c.token.allowance(account, POOL_ADDRESS).catch(function(){ return null; })
+            ].concat(claimableCalls)).then(function(r){
+              var info = r[0], mine = r[1];
+              if(info){ $('poolRun').textContent = fmtSqk(info[7]); $('poolNap').textContent = fmtSqk(info[6]); }
+              if(mine) $('poolMine').textContent = mine[2] ? ((Number(mine[1]) === 1 ? 'RUN ' : 'NAP ') + fmtSqk(mine[0])) : '—';
+              if(r[2] !== null) $('poolBal').textContent = fmtSqk(r[2]) + ' SQK';
+              if(r[3] !== null) $('poolAllow').textContent = fmtSqk(r[3]) + ' SQK';
+              var total = 0n;
+              for(var j = 4; j < r.length; j++) total += r[j];
+              $('poolClaimable').textContent = fmtSqk(total);
+            });
+          }).catch(function(){});
+        }
+        function poolMsgSet(t, ok){
+          var m = $('poolMsg'); m.className = 'msg' + (ok ? ' ok' : ' err'); m.textContent = t;
+        }
+        $('poolSegRun').addEventListener('click', function(){ poolSide = 1; $('poolSegRun').classList.add('on'); $('poolSegNap').classList.remove('on'); });
+        $('poolSegNap').addEventListener('click', function(){ poolSide = 0; $('poolSegNap').classList.add('on'); $('poolSegRun').classList.remove('on'); });
+        function poolAmount(){
+          try {
+            var amt = ethers.parseUnits(($('poolAmt').value || '0'), 18);
+            return amt > 0n ? amt : null;
+          } catch(e){ return null; }
+        }
+        $('poolApproveBtn').addEventListener('click', function(){
+          if(!account) return poolMsgSet('Connect your wallet first.');
+          var amt = poolAmount(); if(!amt) return poolMsgSet('Enter a stake amount above 0.');
+          poolContracts().then(function(c){ if(!c) throw new Error('no wallet'); return c.token.approve(POOL_ADDRESS, amt); })
+            .then(function(tx){ return tx.wait(); })
+            .then(function(){ poolMsgSet('SQK approved for the pool.', true); renderPool(); })
+            .catch(function(){ poolMsgSet('Approval rejected or failed in the wallet.'); });
+        });
+        $('poolBetBtn').addEventListener('click', function(){
+          if(!account) return poolMsgSet('Connect your wallet first.');
+          var amt = poolAmount(); if(!amt) return poolMsgSet('Enter a stake amount above 0.');
+          var round = nextRound;
+          poolContracts().then(function(c){ if(!c) throw new Error('no wallet'); return c.pool.bet(round, poolSide, amt); })
+            .then(function(tx){ return tx.wait(); })
+            .then(function(){
+              var list = store.get('poolRounds', []);
+              if(list.indexOf(round) === -1){ list.push(round); store.set('poolRounds', list); }
+              poolMsgSet('Bet placed for round ' + round + ' — ' + (poolSide === 1 ? 'RUN' : 'NAP') + '.', true);
+              renderPool();
+            })
+            .catch(function(){ poolMsgSet('Bet rejected or failed — check your SQK balance and allowance, and that the round is open.'); });
+        });
+        $('poolClaimBtn').addEventListener('click', function(){
+          if(!account) return poolMsgSet('Connect your wallet first.');
+          poolContracts().then(function(c){
+            if(!c) throw new Error('no wallet');
+            var rounds = poolRoundsList();
+            var checks = rounds.map(function(r){ return c.pool.claimable(r, account).then(function(v){ return { round:r, value:v }; }).catch(function(){ return { round:r, value:0n }; }); });
+            return Promise.all(checks).then(function(list){
+              var hit = null;
+              list.forEach(function(x){ if(!hit && x.value > 0n) hit = x; });
+              if(!hit) throw new Error('nothing');
+              return c.pool.claim(hit.round).then(function(tx){ return tx.wait(); }).then(function(){ return hit; });
+            });
+          })
+            .then(function(hit){ poolMsgSet('Claimed ' + fmtSqk(hit.value) + ' SQK from round ' + hit.round + '.', true); renderPool(); })
+            .catch(function(e){ poolMsgSet(e && e.message === 'nothing' ? 'Nothing to claim yet — winnings appear after your round settles.' : 'Claim rejected or failed in the wallet.'); });
+        });
+        $('poolRefreshBtn').addEventListener('click', function(){ renderPool(); });
 
         /* ---------- prediction form ---------- */
         var call = 'nap';
@@ -764,6 +904,7 @@
                 document.querySelector('.predRound').textContent = String(nextRound);
                 document.querySelector('.botRound').textContent = String(nextRound);
                 renderFeed();
+                renderPool();
               }
               if(m.coreStatus){
                 var running = m.coreStatus !== 'IDLE';
@@ -789,6 +930,7 @@
         renderWallet(); renderPreds(); renderBoard();
         refreshLive(true);
         if(leagueOn()) leagueLoad();
+        renderPool();
       })();
     </script>
   </body>
